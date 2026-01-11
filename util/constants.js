@@ -1,0 +1,15 @@
+export const STUDY_MATERIAL_FILE_TYPES = [
+  "PDF",
+  "DOC",
+  "DOCX",
+  "PPT",
+  "PPTX",
+  "XLS",
+  "XLSX",
+  "CSV",
+  "ZIP",
+  "IMAGE",
+  "VIDEO",
+  "LINK",
+  "OTHER",
+];

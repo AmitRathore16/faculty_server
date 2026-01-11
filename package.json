@@ -1,0 +1,46 @@
+{
+  "name": "facultypedia-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js",
+    "dev": "nodemon index.js",
+    "seed:admin": "node scripts/seedAdmin.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeevijay-developers/facultypedia-server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/jeevijay-developers/facultypedia-server/issues"
+  },
+  "homepage": "https://github.com/jeevijay-developers/facultypedia-server#readme",
+  "dependencies": {
+    "@vimeo/vimeo": "^3.0.3",
+    "axios": "^1.13.1",
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^1.41.3",
+    "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-validator": "^7.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.19.2",
+    "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^7.0.10",
+    "nodemon": "^3.1.10",
+    "pdfkit": "^0.15.0",
+    "razorpay": "^2.9.6",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.3",
+    "vimeo": "^2.3.1"
+  }
+}
