@@ -45,7 +45,6 @@ router.get("/", studentQueryValidation, getAllStudents);
  * @access  Public
  * @param   id - Student ObjectId
  */
-router.get("/:id", validateId, getStudentById);
 
 router.get(
   "/username/:username",
@@ -94,6 +93,7 @@ router.get(
   [studentClassValidation, studentQueryValidation],
   getStudentsByClass
 );
+router.get("/:id", validateId, getStudentById);
 
 // ======================= Password Management Routes =======================
 

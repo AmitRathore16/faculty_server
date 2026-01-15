@@ -1,6 +1,7 @@
 import Test from "../models/test.js";
 import mongoose from "mongoose";
 import { validationResult } from "express-validator";
+import Student from "../models/student.js";
 
 // Create a new test
 export const createTest = async (req, res) => {
@@ -816,6 +817,57 @@ export const getFilteredTests = async (req, res) => {
   // This is the same as getAllTests but with more advanced filtering
   return getAllTests(req, res);
 };
+// POST /api/tests/:id/submit
+
+// POST /api/tests/:id/submit
+export const submitTest = async (req, res) => {
+  try {
+    const { id: testId } = req.params;
+
+    const {
+      studentId,
+      score,
+      totalMarks,
+      percentage,
+      correctAnswers,
+      wrongAnswers,
+      unattempted
+    } = req.body;
+
+    // ✅ get student
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
+
+    // ✅ get test (for title)
+    const test = await Test.findById(testId).select("title");
+    if (!test) {
+      return res.status(404).json({ success: false, message: "Test not found" });
+    }
+
+    // ✅ save result with title snapshot
+    student.results.push({
+      testId,
+      title: test.title, // ✅ IMPORTANT
+      score,
+      totalMarks,
+      percentage,
+      correctAnswers,
+      wrongAnswers,
+      unattempted,
+      completedAt: new Date(),
+    });
+
+    await student.save();
+
+    return res.json({ success: true, message: "Result saved" });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+
 
 export default {
   createTest,
@@ -833,4 +885,5 @@ export default {
   getStandaloneTests,
   getTestStatistics,
   getFilteredTests,
+  submitTest
 };

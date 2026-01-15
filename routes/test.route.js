@@ -12,7 +12,8 @@ import {
   removeQuestionFromTest,
   getTestQuestions,
   getTestStatistics,
-  getFilteredTests
+  getFilteredTests,
+  submitTest
 } from "../controllers/test.controller.js";
 
 import {
@@ -205,5 +206,6 @@ router.get("/educator/:educatorId", [testEducatorValidation, testQueryValidation
  * }
  */
 router.get("/test-series/:testSeriesId", [testSeriesValidation, testQueryValidation], getTestsByTestSeries);
+router.post("/:id/submit", validateId, submitTest);
 
 export default router;

@@ -207,6 +207,7 @@ const studentSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Test'
         },
+        title: { type: String },
         testSeriesId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'TestSeries'
