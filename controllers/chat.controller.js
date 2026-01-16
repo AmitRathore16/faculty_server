@@ -1,11 +1,35 @@
 import { validationResult } from "express-validator";
 import ChatService from "../services/chat.service.js";
 import Conversation from "../models/conversation.js";
-import Admin from "../models/admin.js";
 
 const chatService = ChatService.getInstance();
 
-// Upload chat image (Option A: images only)
+/**
+ * ✅ Middleware sends:
+ * req.auth.userType = "student" | "educator" | "admin"
+ * but DB stores: "Student" | "Educator" | "Admin"
+ */
+const mapUserType = (userType) => {
+  if (userType === "student") return "Student";
+  if (userType === "educator") return "Educator";
+  if (userType === "admin") return "Admin";
+  return null;
+};
+
+/**
+ * ✅ Safe participant check
+ * Handles: ObjectId, populated object, null
+ */
+const isUserParticipant = (conversation, authUserId) => {
+  const uid = authUserId.toString();
+
+  return conversation.participants.some((p) => {
+    const pid = (p.userId?._id ?? p.userId)?.toString();
+    return pid === uid;
+  });
+};
+
+// ================= Upload chat image (optional) =================
 export const uploadChatImage = async (req, res) => {
   try {
     if (!req.file) {
@@ -46,11 +70,18 @@ export const uploadChatImage = async (req, res) => {
   }
 };
 
-// Get all conversations for current user
+// ================= Conversation list =================
 export const getConversations = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    const userType = req.auth.userType === "admin" ? "Admin" : "Educator";
+
+    const userType = mapUserType(req.auth.userType);
+    if (!userType) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid user type",
+      });
+    }
 
     const conversations = await chatService.getUserConversations(
       userId,
@@ -72,7 +103,7 @@ export const getConversations = async (req, res) => {
   }
 };
 
-// Get or create conversation with another user
+// ================= Student create conversation =================
 export const createConversation = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -85,43 +116,39 @@ export const createConversation = async (req, res) => {
     }
 
     const { otherUserId } = req.body;
+
     const currentUserId = req.auth.userId;
-    const currentUserType = req.auth.userType;
+    const currentUserType = req.auth.userType; // student | educator | admin
 
-    // Determine educator and admin IDs
-    let educatorId, adminId;
-
-    if (currentUserType === "admin") {
-      adminId = currentUserId;
-      educatorId = otherUserId;
-    } else {
-      educatorId = currentUserId;
-
-      // If educator is creating conversation, get the super admin
-      const superAdmin = await Admin.findOne({
-        isSuperAdmin: true,
-        status: "active",
+    /**
+     * ✅ ONLY Student -> Educator supported here
+     */
+    if (currentUserType !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only Student can create chat with Educator",
       });
-      if (!superAdmin) {
-        return res.status(404).json({
-          success: false,
-          message: "Super admin not found",
-        });
-      }
-      adminId = superAdmin._id;
     }
 
-    const conversation = await chatService.getOrCreateConversation(
-      educatorId,
-      adminId
-    );
+    if (!otherUserId) {
+      return res.status(400).json({
+        success: false,
+        message: "otherUserId (Educator) is required for student chat",
+      });
+    }
 
-    res.status(200).json({
+    const result =
+      await chatService.getOrCreateStudentEducatorConversation(
+        currentUserId,
+        otherUserId
+      );
+
+    return res.status(200).json({
       success: true,
-      message: conversation.isNew
+      message: result.isNew
         ? "Conversation created successfully"
         : "Conversation retrieved successfully",
-      data: { conversation },
+      data: { conversation: result.conversation },
     });
   } catch (error) {
     console.error("Error creating conversation:", error);
@@ -133,7 +160,7 @@ export const createConversation = async (req, res) => {
   }
 };
 
-// Get messages for a conversation
+// ================= Get messages =================
 export const getMessages = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -148,7 +175,6 @@ export const getMessages = async (req, res) => {
     const { id } = req.params;
     const { page = 1, limit = 50 } = req.query;
 
-    // Verify conversation exists and user is a participant
     const conversation = await Conversation.findById(id);
 
     if (!conversation) {
@@ -158,11 +184,7 @@ export const getMessages = async (req, res) => {
       });
     }
 
-    const isParticipant = conversation.participants.some(
-      (p) => p.userId.toString() === req.auth.userId.toString()
-    );
-
-    if (!isParticipant) {
+    if (!isUserParticipant(conversation, req.auth.userId)) {
       return res.status(403).json({
         success: false,
         message: "You are not a participant in this conversation",
@@ -190,21 +212,19 @@ export const getMessages = async (req, res) => {
   }
 };
 
-// Mark all messages in a conversation as read for the current user
+// ================= Mark conversation read =================
 export const markConversationAsRead = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation errors",
-        errors: errors.array(),
-      });
-    }
-
     const { id } = req.params;
     const userId = req.auth.userId;
-    const userType = req.auth.userType === "admin" ? "Admin" : "Educator";
+
+    const userType = mapUserType(req.auth.userType);
+    if (!userType) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid user type",
+      });
+    }
 
     const conversation = await Conversation.findById(id);
 
@@ -215,11 +235,7 @@ export const markConversationAsRead = async (req, res) => {
       });
     }
 
-    const isParticipant = conversation.participants.some(
-      (p) => p.userId.toString() === userId.toString()
-    );
-
-    if (!isParticipant) {
+    if (!isUserParticipant(conversation, userId)) {
       return res.status(403).json({
         success: false,
         message: "You are not a participant in this conversation",
@@ -245,7 +261,7 @@ export const markConversationAsRead = async (req, res) => {
   }
 };
 
-// Send a message (REST fallback)
+// ================= Send message =================
 export const sendMessage = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -267,9 +283,15 @@ export const sendMessage = async (req, res) => {
     } = req.body;
 
     const senderId = req.auth.userId;
-    const senderType = req.auth.userType === "admin" ? "Admin" : "Educator";
+    const senderType = mapUserType(req.auth.userType);
 
-    // Verify conversation exists and user is a participant
+    if (!senderType) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid sender type",
+      });
+    }
+
     const conversation = await Conversation.findById(conversationId);
 
     if (!conversation) {
@@ -279,11 +301,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    const isParticipant = conversation.participants.some(
-      (p) => p.userId.toString() === senderId.toString()
-    );
-
-    if (!isParticipant) {
+    if (!isUserParticipant(conversation, senderId)) {
       return res.status(403).json({
         success: false,
         message: "You are not a participant in this conversation",
@@ -316,18 +334,9 @@ export const sendMessage = async (req, res) => {
   }
 };
 
-// Mark message as read
+// ================= Mark message read =================
 export const markMessageAsRead = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation errors",
-        errors: errors.array(),
-      });
-    }
-
     const { id } = req.params;
     const userId = req.auth.userId;
 
@@ -363,11 +372,18 @@ export const markMessageAsRead = async (req, res) => {
   }
 };
 
-// Get unread message count
+// ================= Get unread count =================
 export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    const userType = req.auth.userType === "admin" ? "Admin" : "Educator";
+
+    const userType = mapUserType(req.auth.userType);
+    if (!userType) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid user type",
+      });
+    }
 
     const unreadCount = await chatService.getUnreadCount(userId, userType);
 

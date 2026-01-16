@@ -17,7 +17,7 @@ const messageSchema = new mongoose.Schema(
       userType: {
         type: String,
         required: true,
-        enum: ["Educator", "Admin"],
+        enum: ["Educator", "Admin", "Student"],
       },
     },
     receiver: {

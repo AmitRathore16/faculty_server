@@ -85,6 +85,68 @@ export const authenticateAdmin = async (req, res, next) => {
     buildErrorResponse(res, 500, "Authentication failed");
   }
 };
+export const authenticateAnyUser = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return buildErrorResponse(res, 401, "Authorization header missing");
+    }
+
+    const token = authHeader.split(" ")[1];
+    let payload;
+
+    try {
+      payload = verifyAccessToken(token);
+    } catch (error) {
+      return buildErrorResponse(res, 401, "Invalid or expired token");
+    }
+
+    if (payload.role === "admin") {
+      const admin = await Admin.findById(payload.sub);
+      if (!admin || admin.status !== "active") {
+        return buildErrorResponse(res, 404, "Admin not found or inactive");
+      }
+      req.admin = admin;
+      req.auth = {
+        userId: admin._id,
+        userType: "admin",
+        tokenPayload: payload,
+      };
+    } else if (payload.role === "educator") {
+      const educator = await Educator.findById(payload.sub);
+      if (!educator) {
+        return buildErrorResponse(res, 404, "Educator not found");
+      }
+      req.educator = educator;
+      req.auth = {
+        userId: educator._id,
+        userType: "educator",
+        tokenPayload: payload,
+      };
+    } else if (payload.role === "student") {
+      const student = await Student.findById(payload.sub);
+      if (!student) {
+        return buildErrorResponse(res, 404, "Student not found");
+      }
+      if (!student.isActive) {
+        return buildErrorResponse(res, 403, "Student account is inactive");
+      }
+      req.student = student;
+      req.auth = {
+        userId: student._id,
+        userType: "student",
+        tokenPayload: payload,
+      };
+    } else {
+      return buildErrorResponse(res, 403, "Unauthorized role");
+    }
+
+    next();
+  } catch (error) {
+    console.error("AnyUser auth middleware error:", error);
+    buildErrorResponse(res, 500, "Authentication failed");
+  }
+};
 
 export const authenticateStudent = async (req, res, next) => {
   try {

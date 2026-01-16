@@ -9,14 +9,13 @@ import {
   getUnreadCount,
   uploadChatImage,
 } from "../controllers/chat.controller.js";
-import { authenticateAdminOrEducator } from "../middleware/auth.middleware.js";
 import { body, param } from "express-validator";
 import { uploadGenericImage } from "../config/cloudinary.js";
-
+import { authenticateAnyUser } from "../middleware/auth.middleware.js";
 const router = express.Router();
 
 // All routes require admin or educator authentication
-router.use(authenticateAdminOrEducator);
+router.use(authenticateAnyUser);
 
 /**
  * @route   GET /api/chat/conversations
