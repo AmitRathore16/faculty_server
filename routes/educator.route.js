@@ -25,7 +25,7 @@ import {
   getEducatorStatistics,
   uploadEducatorIntroVideo,
   getEducatorIntroVideoStatus,
-  updateEducatorBankDetails,
+  updateEducatorBankDetails, 
 } from "../controllers/educator.controller.js";
 import { signupEducator as createEducatorProfile } from "../controllers/auth.controller.js";
 

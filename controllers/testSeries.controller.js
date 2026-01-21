@@ -638,6 +638,9 @@ export const enrollStudent = async (req, res) => {
     testSeries.enrolledStudents.push(studentId);
     testSeries.updatedAt = Date.now();
     await testSeries.save();
+await mongoose.model("Student").findByIdAndUpdate(studentId, {
+  $addToSet: { testSeries: { testSeriesId: id } },
+});
 
     res.status(200).json({
       message: "Student enrolled successfully",
